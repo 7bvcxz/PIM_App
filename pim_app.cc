@@ -25,13 +25,13 @@ int main(int argc, const char **argv) {
         {"pim-api"}, "add");
     args::ValueFlag<uint64_t> add_n_arg(
         parser, "add_n", "[ADD] Number of elements in vector x, y and z",
-        {"add-n"}, 1024*1024);
+        {"add-n"}, 4096);
     args::ValueFlag<uint64_t> gemv_m_arg(
         parser, "gemv_m", "[GEMV] Number of rows of the matrix A",
         {"gemv-m"}, 4096);
     args::ValueFlag<uint64_t> gemv_n_arg(
         parser, "gemv_n", "[GEMV] Number of columns of the matrix A",
-        {"gemv-n"}, 4096);
+        {"gemv-n"}, 32);
 
     try {
         parser.ParseCLI(argc, argv);

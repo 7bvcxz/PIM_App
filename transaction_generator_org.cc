@@ -42,9 +42,13 @@ void TransactionGenerator::TryAddTransaction(uint64_t hex_addr, bool is_write,
         //uint8_t *new_data = (uint8_t *) malloc(burstSize_);
         //std::memcpy(new_data, DataPtr, burstSize_);
         //memory_system_.AddTransaction(hex_addr, is_write, new_data);
+        //std::cout << "w " << hex_addr << " " << tmp << std::endl;
+        //tmp++;
         std::memcpy(&pmemAddr_[hex_addr], DataPtr, burstSize_);
     } else {
         //memory_system_.AddTransaction(hex_addr, is_write, DataPtr);
+        //std::cout << "r " << hex_addr << " " << tmp << std::endl;
+        //tmp++;
         std::memcpy(DataPtr, &pmemAddr_[hex_addr], burstSize_);
     }
 }
@@ -136,7 +140,6 @@ void AddTransactionGenerator::SetData() {
         uint64_t hex_addr = ReverseAddressMapping(addr);
         TryAddTransaction(hex_addr, false, data_temp_);
     }
-    //_mm_mfence();
     Barrier();
 
     // Program μkernel into CRF register

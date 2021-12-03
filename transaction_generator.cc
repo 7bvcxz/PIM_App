@@ -3,11 +3,6 @@
 
 using half_float::half;
 
-int TransactionGenerator::GetChannel(uint64_t hex_addr) {
-    hex_addr >>= shift_bits_;
-    return (hex_addr >> ch_pos_) & ch_mask_;
-}
- 
 Address TransactionGenerator::AddressMapping(uint64_t hex_addr) const {
     hex_addr >>= shift_bits_;
     int channel = (hex_addr >> ch_pos_) & ch_mask_;
@@ -36,18 +31,6 @@ uint64_t TransactionGenerator::Ceiling(uint64_t num, uint64_t stride) {
     return ((num + stride - 1) / stride) * stride;
 }
 
-void* GiveThrWork(void *data) {
-    ThrInput *ThrInput_ = (ThrInput*)(data);
-    
-    if (ThrInput_->is_write) {
-        std::memcpy(&pmemAddr_[ThrInput_->hex_addr], ThrInput_->DataPtr,
-                    256/NUM_THREAD_PER_CHANNEL);
-    } else {
-        std::memcpy(ThrInput_->DataPtr, &pmemAddr_[ThrInput_->hex_addr],
-                    256/NUM_THREAD_PER_CHANNEL);
-    }
-}
-
 // Send transaction to memory_system (DRAMsim3 + PIM Functional Simulator)
 //  hex_addr : address to RD/WR from physical memory or change bank mode
 //  is_write : denotes to Read or Write
@@ -58,35 +41,15 @@ void TransactionGenerator::TryAddTransaction(uint64_t hex_addr, bool is_write,
     if (is_write) {
         //uint8_t *new_data = (uint8_t *) malloc(burstSize_);
         //std::memcpy(new_data, DataPtr, burstSize_);
-        //memory_system_.AddTransaction(hex_addr, is_write, new_data);    
+        //memory_system_.AddTransaction(hex_addr, is_write, new_data);
+        //std::cout << "w " << hex_addr << " " << tmp << std::endl;
+        //tmp++;
         std::memcpy(&pmemAddr_[hex_addr], DataPtr, burstSize_);
     } else {
         //memory_system_.AddTransaction(hex_addr, is_write, DataPtr);
+        //std::cout << "r " << hex_addr << " " << tmp << std::endl;
+        //tmp++;
         std::memcpy(DataPtr, &pmemAddr_[hex_addr], burstSize_);
-    }
-}
-
-// Send transaction to memory_system (DRAMsim3 + PIM Functional Simulator)
-//  hex_addr : address to RD/WR from physical memory or change bank mode
-//  is_write : denotes to Read or Write
-//  *DataPtr : buffer used for both RD/WR transaction (read common.h)
-void TransactionGenerator::TryAddTransactionThr(uint64_t hex_addr, bool is_write,
-                                             uint8_t *DataPtr, int thr_idx) {
-    // Send transaction to memory_system
-    if (is_write) {
-        int ch = GetChannel(hex_addr);
-        ThrInput *ThrInput0_ = new ThrInput(hex_addr, is_write, DataPtr);
-        tmp = pthread_create(&thr[ch][thr_idx*2], NULL, GiveThrWork, (void*)ThrInput0_);
-        ThrInput *ThrInput1_ = new ThrInput(hex_addr+256/NUM_THREAD_PER_CHANNEL, is_write,
-                                            DataPtr+256/NUM_THREAD_PER_CHANNEL);
-        tmp = pthread_create(&thr[ch][thr_idx*2+1], NULL, GiveThrWork, (void*)ThrInput1_);
-    } else {
-        int ch = GetChannel(hex_addr);
-        ThrInput *ThrInput0_ = new ThrInput(hex_addr, is_write, DataPtr);
-        tmp = pthread_create(&thr[ch][thr_idx*2], NULL, GiveThrWork, (void*)ThrInput0_);
-        ThrInput *ThrInput1_ = new ThrInput(hex_addr+256/NUM_THREAD_PER_CHANNEL, is_write,
-                                            DataPtr+256/NUM_THREAD_PER_CHANNEL);
-        tmp = pthread_create(&thr[ch][thr_idx*2+1], NULL, GiveThrWork, (void*)ThrInput1_);
     }
 }
 
@@ -94,7 +57,7 @@ void TransactionGenerator::TryAddTransactionThr(uint64_t hex_addr, bool is_write
 //  Change memory's threshold and wait until all pending transactions are
 //  executed
 void TransactionGenerator::Barrier() {
-    //_mm_mfence();
+    _mm_mfence();
     return;
 #if 0
     memory_system_.SetWriteBufferThreshold(0);
@@ -177,7 +140,6 @@ void AddTransactionGenerator::SetData() {
         uint64_t hex_addr = ReverseAddressMapping(addr);
         TryAddTransaction(hex_addr, false, data_temp_);
     }
-    //_mm_mfence();
     Barrier();
 
     // Program μkernel into CRF register
@@ -233,7 +195,7 @@ void AddTransactionGenerator::Execute() {
                 for (int ch = 0; ch < NUM_CHANNEL; ch++) {
                     Address addr(ch, 0, 0, EVEN_BANK, ro, co);
                     uint64_t hex_addr = ReverseAddressMapping(addr);
-                    TryAddTransactionThr(addr_x_ + hex_addr, false, data_temp_, co_i);
+                    TryAddTransaction(addr_x_ + hex_addr, false, data_temp_);
                 }
             }
             Barrier();
@@ -257,7 +219,7 @@ void AddTransactionGenerator::Execute() {
                 for (int ch = 0; ch < NUM_CHANNEL; ch++) {
                     Address addr(ch, 0, 0, EVEN_BANK, ro, co);
                     uint64_t hex_addr = ReverseAddressMapping(addr);
-                    TryAddTransactionThr(addr_z_ + hex_addr, true, data_temp_, co_i);
+                    TryAddTransaction(addr_z_ + hex_addr, true, data_temp_);
                 }
             }
 
@@ -278,7 +240,7 @@ void AddTransactionGenerator::Execute() {
                 for (int ch = 0; ch < NUM_CHANNEL; ch++) {
                     Address addr(ch, 0, 0, ODD_BANK, ro, co);
                     uint64_t hex_addr = ReverseAddressMapping(addr);
-                    TryAddTransactionThr(addr_x_ + hex_addr, false, data_temp_, co_i);
+                    TryAddTransaction(addr_x_ + hex_addr, false, data_temp_);
                 }
             }
             Barrier();
@@ -306,7 +268,7 @@ void AddTransactionGenerator::Execute() {
                 for (int ch = 0; ch < NUM_CHANNEL; ch++) {
                     Address addr(ch, 0, 0, ODD_BANK, ro, co);
                     uint64_t hex_addr = ReverseAddressMapping(addr);
-                    TryAddTransactionThr(addr_z_ + hex_addr, true, data_temp_, co_i);
+                    TryAddTransaction(addr_z_ + hex_addr, true, data_temp_);
                 }
             }
             // Flush!!
@@ -533,7 +495,7 @@ void GemvTransactionGenerator::ExecuteBank(int bank) {
                 for (int ch = 0; ch < NUM_CHANNEL; ch++) {
                     Address addr(ch, 0, 0, bank, ro, co);
                     uint64_t hex_addr = ReverseAddressMapping(addr);
-                    TryAddTransactionThr(hex_addr, false, data_temp_, co_i);
+                    TryAddTransaction(hex_addr, false, data_temp_);
                 }
             }
             Barrier();

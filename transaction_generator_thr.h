@@ -13,6 +13,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <immintrin.h>
+#include <pthread.h>
 #include "./pim_config.h"
 #include "./half.hpp"
 #include "./PIM-DD.h"
@@ -41,6 +42,7 @@
 #define C_YELLOW "\033[033m"
 #define C_BLUE   "\033[034m"
 
+uint8_t *pmemAddr_;
 
 struct Address {
     Address()
@@ -76,6 +78,8 @@ struct ThrInput {
     bool is_write;
     uint8_t* DataPtr;
 };
+
+void* GiveThrWork(void *data);
 
 class TransactionGenerator {
  public:
@@ -130,13 +134,15 @@ class TransactionGenerator {
     int GetChannel(uint64_t hex_addr);
     uint64_t Ceiling(uint64_t num, uint64_t stride);
     void TryAddTransaction(uint64_t hex_addr, bool is_write, uint8_t *DataPtr);
+    void TryAddTransactionThr(uint64_t hex_addr, bool is_write, uint8_t *DataPtr, int thr_idx);
     void Barrier();
 
  protected:
     int fd_;
     int tmp;
-    uint8_t *pmemAddr_;
     unsigned int burstSize_;
+    pthread_t thr[NUM_CHANNEL][NUM_THREAD_PER_CHANNEL];
+    pthread_mutex_t mutex;
 
     uint8_t data_temp_[32];
     uint8_t write_data_[32];

@@ -32,6 +32,10 @@ int main(int argc, const char **argv) {
     args::ValueFlag<uint64_t> gemv_n_arg(
         parser, "gemv_n", "[GEMV] Number of columns of the matrix A",
         {"gemv-n"}, 32);
+    args::ValueFlag<uint64_t> test_n_arg(
+        parser, "test_n", "[TEST] Number of columns of the matrix A",
+        {"test-n"}, 8);
+
 
     try {
         parser.ParseCLI(argc, argv);
@@ -99,6 +103,22 @@ int main(int argc, const char **argv) {
         // Define Transaction generator for GEMV computation
         tx_generator = new GemvTransactionGenerator(m, n, A, x, y);
     }
+    else if (pim_api == "test") {
+        uint64_t n = args::get(test_n_arg);
+
+        // Define input vector x
+        uint8_t *x = (uint8_t *) malloc(sizeof(uint16_t) * n);
+
+        // Fill input operands with random value
+        for (int i=0; i< n; i++) {
+            half h_x = half(rand() / static_cast<float>(RAND_MAX));
+            ((uint16_t*)x)[i] = *reinterpret_cast<uint16_t*>(&h_x);
+        }
+
+        // Define Transaction generator for Test computation
+        tx_generator = new TestTransactionGenerator(n, x);
+    }
+ 
     std::cout << C_GREEN << "Success Module Initialize" << C_NORMAL << "\n";
     end = clock();
     result = (double)(end - start);

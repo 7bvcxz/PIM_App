@@ -69,12 +69,6 @@ void TransactionGenerator::Barrier() {
 #endif
 }
 
-void clflush(uint8_t *mem, size_t size) {
-    //for (size_t i = 0; i < size; i += 32)
-    //    _mm_clflush(&mem[i]);
-    return;
-}
-
 // Initialize variables and ukernel
 void AddTransactionGenerator::Initialize() {
     // base address of operands
@@ -107,6 +101,12 @@ void AddTransactionGenerator::Initialize() {
     ukernel_[10] = 0b01000000010000001000000000000000; // MOV(AAM)  BANK   GRF_A
     ukernel_[11] = 0b00010000000001000000100000000111; // JUMP      -1     7
     ukernel_[12] = 0b00100000000000000000000000000000; // EXIT
+}
+
+void clflush(uint8_t *mem, size_t size) {
+    return; // no clflush!
+    for (size_t i = 0; i < size; i += 32)
+        _mm_clflush(&mem[i]);
 }
 
 // Write operand data and μkernel to physical memory and PIM registers
@@ -662,42 +662,3 @@ void GemvTransactionGenerator::CheckResult() {
     std::cout << "pim result : " << h_yyy << std::endl;
     std::cout << "ERROR : " << h_err << std::endl;
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////
-
-// Initialize variables and ukernel
-void TestTransactionGenerator::Initialize() {
-    // base address of operands
-    addr_x_ = 0;
-}
-
-// Write operand data and μkernel to physical memory and PIM registers
-void TestTransactionGenerator::SetData() {
-    // strided size of one operand with one computation part(minimum)
-    uint64_t strided_size = Ceiling(n_ * UNIT_SIZE, SIZE_WORD * NUM_BANK);
-
-    #ifdef debug_mode
-    std::cout << "HOST:\tSet input data\n";
-    #endif
-    // Write input data x to physical memory
-    for (int offset = 0; offset < strided_size ; offset += SIZE_WORD)
-        TryAddTransaction(addr_x_ + offset, true, x_ + offset);
-    return;
-}
-
-// Execute PIM computation
-void TestTransactionGenerator::Execute() {
-    return;
-}
-
-// Read PIM computation result from physical memory
-void TestTransactionGenerator::GetResult() {
-    return;
-}
-
-// Calculate error between the result of PIM computation and actual answer
-void TestTransactionGenerator::CheckResult() {
-    return;
-}
-

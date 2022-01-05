@@ -196,26 +196,4 @@ class GemvTransactionGenerator : public TransactionGenerator {
     uint32_t *ukernel_reduce_;
 };
 
-class TestTransactionGenerator : public TransactionGenerator {
- public:
-    TestTransactionGenerator(uint64_t n,
-                             uint8_t *x)
-        : n_(n), x_(x) {}
-    void Initialize() override;
-    void SetData() override;
-    void Execute() override;
-    void GetResult() override;
-    void CheckResult() override;
-
- private:
-    void ExecuteBank(int bank);
-
-    uint8_t *x_;
-    uint64_t n_;
-    uint64_t addr_x_;
-    uint64_t ukernel_access_size_;
-    uint64_t ukernel_count_per_pim_;
-};
-
-
 #endif // __TRANSACTION_GENERATOR_H
